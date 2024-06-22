@@ -1,0 +1,35 @@
+name: Build README and deploy Datasette
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install datasette openai-to-sqlite
+
+      - name: Fetch markdown files and convert to SQLite
+        run: |
+          mkdir -p data
+          for file in $(find . -name "*.md"); do
+            openai-to-sqlite insert data/documents.db documents "$file"
+          done
+
+      - name: Deploy to Datasette
+        run: datasette publish vercel data/documents.db --token ${{ secrets.VERCEL_TOKEN }}
